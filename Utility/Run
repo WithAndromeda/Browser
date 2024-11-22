@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+swift build
+swift run
