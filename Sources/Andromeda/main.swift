@@ -1,6 +1,6 @@
 //
 //  main.swift
-//  Helium
+//  Andromeda
 //
 //  Created by Tristan Shaw on 10/20/24.
 //
@@ -11,10 +11,10 @@ import SwiftUI
 struct AboutView: View {
     var body: some View {
         VStack(spacing: 10) {
-            Text("Helium").font(.title)
+            Text("Andromeda").font(.title)
             Text("Version 1.0")
-            Text("© 2024 Tristan Shaw")
-            Text("A secure, fast, efficient andlightweight web browser")
+            Text("© 2024 WithAndromeda")
+            Text("A secure, fast, efficient and lightweight web browser")
         }
         .padding()
     }
@@ -70,14 +70,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let mainMenu = NSMenu()
         NSApp.mainMenu = mainMenu
 
+        // App Menu
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
-        appMenu.addItem(NSMenuItem(title: "About Helium", action: #selector(showAboutWindow), keyEquivalent: ""))
+        appMenu.addItem(NSMenuItem(title: "About Andromeda", action: #selector(showAboutWindow), keyEquivalent: ""))
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(NSMenuItem(title: "Quit Helium", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appMenu.addItem(NSMenuItem(title: "Quit Andromeda", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
+        // File Menu
         let fileMenuItem = NSMenuItem()
         mainMenu.addItem(fileMenuItem)
         let fileMenu = NSMenu(title: "File")
@@ -85,11 +87,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: "t"))
         fileMenu.addItem(NSMenuItem(title: "Close Tab", action: #selector(closeTab), keyEquivalent: "w"))
 
+        // View Menu
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: "View")
         viewMenuItem.submenu = viewMenu
         viewMenu.addItem(NSMenuItem(title: "Toggle Sidebar", action: #selector(toggleSidebar), keyEquivalent: "s"))
+        viewMenu.addItem(NSMenuItem(title: "Reload Page", action: #selector(reloadPage), keyEquivalent: "r"))
+        
+        // History Menu
+        let historyMenuItem = NSMenuItem()
+        mainMenu.addItem(historyMenuItem)
+        let historyMenu = NSMenu(title: "History")
+        historyMenuItem.submenu = historyMenu
+        historyMenu.addItem(NSMenuItem(title: "Back", action: #selector(goBack), keyEquivalent: "["))
+        historyMenu.addItem(NSMenuItem(title: "Forward", action: #selector(goForward), keyEquivalent: "]"))
     }
 
     @objc func showAboutWindow() {
@@ -101,7 +113,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 backing: .buffered,
                 defer: false
             )
-            aboutWindow?.title = "About Helium"
+            aboutWindow?.title = "About Andromeda"
             aboutWindow?.contentView = aboutView
         }
         aboutWindow?.center()
@@ -118,6 +130,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func toggleSidebar() {
         sidebarManager.toggle()
+    }
+
+    @objc func reloadPage() {
+        viewModel?.reload()
+    }
+
+    @objc func goBack() {
+        viewModel?.goBack()
+    }
+
+    @objc func goForward() {
+        viewModel?.goForward()
     }
 }
 

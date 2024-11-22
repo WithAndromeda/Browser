@@ -1,8 +1,8 @@
 import XCTest
 import WebKit
-@testable import Helium
+@testable import Andromeda
 
-class HeliumTests: XCTestCase {
+class AndromedaTests: XCTestCase {
     var viewModel: ViewModel!
     
     override func setUp() {
@@ -47,7 +47,6 @@ class HeliumTests: XCTestCase {
     }
 }
 
-extension HeliumTests: WKNavigationDelegate {
+extension AndromedaTests: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {}
 }
-
