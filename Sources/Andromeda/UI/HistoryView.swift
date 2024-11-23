@@ -44,6 +44,7 @@ struct HistoryView: View {
     @EnvironmentObject private var viewModel: ViewModel
     @State private var selectedItemId: UUID?
     @State private var searchText = ""
+    @State private var showingClearConfirmation = false
     let closeAction: () -> Void
     
     var filteredHistory: [HistoryItem] {
@@ -58,9 +59,20 @@ struct HistoryView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search History", text: $searchText)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
+            HStack {
+                TextField("Search History", text: $searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                
+                Button(action: {
+                    showingClearConfirmation = true
+                }) {
+                    Text("Clear All")
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(viewModel.history.isEmpty)
+            }
+            .padding()
             
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -94,5 +106,13 @@ struct HistoryView: View {
             }
         }
         .background(Color(NSColor.windowBackgroundColor))
+        .alert("Clear History", isPresented: $showingClearConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear", role: .destructive) {
+                viewModel.clearHistory()
+            }
+        } message: {
+            Text("Are you sure you want to clear all browsing history? This action cannot be undone.")
+        }
     }
 } 

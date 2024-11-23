@@ -38,6 +38,7 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
 
     private let tabsKey = "savedTabs"
     public let settingsManager = SettingsManager()
+    private var faviconData: Data?
 
     override init() {
         super.init()
@@ -240,6 +241,7 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
                         if let data = data, let image = NSImage(data: data) {
                             DispatchQueue.main.async {
                                 self?.tabFavicons[index] = image
+                                self?.faviconData = data
                             }
                         }
                     }.resume()
@@ -249,12 +251,26 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
             // Get title and save history
             webView.evaluateJavaScript("document.title") { [weak self] (result, error) in
                 DispatchQueue.main.async {
-                    if let title = result as? String {
+                    if let title = result as? String,
+                       let url = webView.url?.absoluteString,
+                       !url.hasPrefix(self?.homePage ?? ""),  // Don't save internal pages
+                       !url.hasPrefix(self?.errorPage ?? "") {
+                        
                         self?.tabTitles[index] = title
-                        if let url = webView.url?.absoluteString {
-                            self?.tabURLs[index] = url
-                            self?.saveTabs()
-                        }
+                        self?.tabURLs[index] = url
+                        
+                        // Create and save history item
+                        let historyItem = HistoryItem(
+                            id: UUID(),
+                            title: title,
+                            url: url,
+                            date: Date(),
+                            faviconData: self?.faviconData
+                        )
+                        
+                        self?.history.append(historyItem)
+                        self?.saveHistory()
+                        self?.saveTabs()
                     }
                 }
             }
@@ -353,6 +369,11 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         }
         
         webView.configuration.defaultWebpagePreferences = preferences
+    }
+
+    func clearHistory() {
+        history.removeAll()
+        saveHistory()
     }
 }
 
