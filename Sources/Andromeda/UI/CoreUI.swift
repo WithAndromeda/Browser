@@ -650,7 +650,7 @@ struct HoverEffect: ViewModifier {
             .foregroundColor(isHovered ? .primary : .gray)
             .opacity(isHovered ? 1 : 0.5)
             .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(.easeInOut(duration: 0.1)) {
                     isHovered = hovering
                 }
             }
