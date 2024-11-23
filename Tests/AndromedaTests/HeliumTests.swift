@@ -17,29 +17,47 @@ class AndromedaTests: XCTestCase {
     
     func testInitialization() {
         XCTAssertNotNil(viewModel.webView)
-        XCTAssertEqual(viewModel.currentURL, viewModel.homePage)
+        XCTAssertEqual(viewModel.tabs.count, 1)
+        XCTAssertEqual(viewModel.selectedTabIndex, 0)
+        XCTAssertEqual(viewModel.currentURL, "")
     }
     
-    func testLoadHomePage() {
-        viewModel.loadHomePage()
-        XCTAssertEqual(viewModel.currentURL, viewModel.homePage)
+    func testAddNewTab() {
+        let initialCount = viewModel.tabs.count
+        viewModel.addNewTab()
+        XCTAssertEqual(viewModel.tabs.count, initialCount + 1)
+        XCTAssertEqual(viewModel.selectedTabIndex, viewModel.tabs.count - 1)
     }
     
-    func testLoadErrorPage() {
-        viewModel.loadErrorPage()
-        XCTAssertEqual(viewModel.currentURL, viewModel.errorPage)
+    func testCloseTab() {
+        viewModel.addNewTab()
+        let initialCount = viewModel.tabs.count
+        viewModel.closeTab(at: 1)
+        XCTAssertEqual(viewModel.tabs.count, initialCount - 1)
+        
+        viewModel.closeTab(at: 0)
+        XCTAssertEqual(viewModel.tabs.count, 1)
+    }
+    
+    func testURLDisplay() {
+        let backendURL = "https://andromeda-backend-536388745693.us-central1.run.app/test"
+        let normalURL = "https://example.com"
+        
+        XCTAssertEqual(viewModel.getDisplayURL(backendURL), "")
+        XCTAssertEqual(viewModel.getDisplayURL(normalURL), normalURL)
     }
     
     func testNavigateToURL() {
         let expectation = XCTestExpectation(description: "Navigation completed")
-        let testURL = "https://www.example.com"
+        let testURL = "https://example.com"
         
-        viewModel.webView.navigationDelegate = self
         viewModel.currentURL = testURL
         viewModel.navigateToURL()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            XCTAssertEqual(self.viewModel.currentURL, testURL)
+            let actualURL = self.viewModel.tabURLs[self.viewModel.selectedTabIndex]?
+                .replacingOccurrences(of: "/", with: "", options: [.anchored, .backwards])
+            XCTAssertEqual(actualURL, testURL)
             expectation.fulfill()
         }
         

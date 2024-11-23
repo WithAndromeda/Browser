@@ -1,0 +1,49 @@
+#!/bin/zsh
+
+if [ ! -d "dist" ]; then
+    mkdir dist
+fi
+
+# Build the app
+swift build -c release
+
+# Create app structure
+mkdir -p Andromeda.app/Contents/{MacOS,Resources}
+
+# Copy executable
+cp .build/release/Andromeda Andromeda.app/Contents/MacOS/
+
+# Copy icon directly
+if [ -f Sources/Andromeda/Resources/AppIcon.icns ]; then
+    cp Sources/Andromeda/Resources/AppIcon.icns Andromeda.app/Contents/Resources/
+fi
+
+# Create Info.plist
+cat > Andromeda.app/Contents/Info.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Andromeda</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.withandromeda.andromeda</string>
+    <key>CFBundleName</key>
+    <string>Andromeda</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+chmod +x Andromeda.app/Contents/MacOS/Andromeda
+mv Andromeda.app dist/
+echo "App bundle created at ./dist/Andromeda.app"

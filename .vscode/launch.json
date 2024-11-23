@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:browser}",
+            "name": "Debug Andromeda",
+            "program": "${workspaceFolder:browser}/.build/debug/Andromeda",
+            "preLaunchTask": "swift: Build Debug Andromeda"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:browser}",
+            "name": "Release Andromeda",
+            "program": "${workspaceFolder:browser}/.build/release/Andromeda",
+            "preLaunchTask": "swift: Build Release Andromeda"
+        }
+    ]
+}

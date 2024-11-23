@@ -17,7 +17,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Andromeda",
-            dependencies: []),
+            dependencies: [],
+            resources: [
+                .process("Resources")
+            ]),
         .testTarget(
             name: "AndromedaTests",
             dependencies: ["Andromeda"]),

@@ -10,26 +10,29 @@ import SwiftUI
 struct SidebarHoverModifier: ViewModifier {
     @Binding var isVisible: Bool
     @State private var isHovering = false
+    @EnvironmentObject var sidebarManager: SidebarManager
     
     func body(content: Content) -> some View {
         content
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if !isVisible && value.location.x < 10 {
-                            withAnimation(.easeOut(duration: 0.3)) {
+            .frame(width: 250)
+            .offset(x: isVisible ? 0 : -250)
+            .zIndex(1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isVisible)
+            .onHover { hovering in
+                isHovering = hovering
+                if !isVisible && hovering {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        if isHovering {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 isVisible = true
                             }
                         }
                     }
-            )
-            .onHover { hovering in
-                isHovering = hovering
-                if !isVisible && hovering {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if isHovering {
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                isVisible = true
+                } else if isVisible && !hovering && !sidebarManager.isPermanent {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        if !isHovering {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isVisible = false
                             }
                         }
                     }
@@ -40,7 +43,7 @@ struct SidebarHoverModifier: ViewModifier {
 
 extension View {
     func sidebarHover(isVisible: Binding<Bool>) -> some View {
-        self.modifier(SidebarHoverModifier(isVisible: isVisible))
+        modifier(SidebarHoverModifier(isVisible: isVisible))
     }
 }
 

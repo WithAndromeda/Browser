@@ -10,13 +10,28 @@ import SwiftUI
 
 struct AboutView: View {
     var body: some View {
-        VStack(spacing: 10) {
-            Text("Andromeda").font(.title)
+        VStack(spacing: 20) {
+            if let iconImage = NSImage(contentsOfFile: Bundle.module.path(forResource: "AppIcon", ofType: "icns") ?? "") {
+                Image(nsImage: iconImage)
+                    .resizable()
+                    .frame(width: 128, height: 128)
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+            }
+            
+            Text("Andromeda")
+                .font(.system(size: 24, weight: .bold))
             Text("Version 1.0")
+                .font(.system(size: 14))
             Text("© 2024 WithAndromeda")
+                .font(.system(size: 14))
             Text("A secure, fast, efficient and lightweight web browser")
+                .font(.system(size: 14))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 300)
         }
-        .padding()
+        .padding(40)
+        .frame(width: 400, height: 400)
     }
 }
 
@@ -37,6 +52,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var sidebarManager: SidebarManager!
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let image = NSImage(contentsOf: iconURL) {
+            let iconSize = NSSize(width: 104, height: 104)
+            image.size = iconSize
+            
+            image.isTemplate = false
+            NSApp.applicationIconImage = image
+            
+            let dockImage = NSImage(size: iconSize)
+            dockImage.lockFocus()
+            
+            let bounds = NSRect(origin: .zero, size: iconSize)
+            let path = NSBezierPath(roundedRect: bounds, xRadius: bounds.width * 0.225, yRadius: bounds.height * 0.225)
+            path.addClip()
+            
+            image.draw(in: bounds)
+            dockImage.unlockFocus()
+            
+            let imageView = NSImageView(frame: bounds)
+            imageView.image = dockImage
+            NSApp.dockTile.contentView = imageView
+            NSApp.dockTile.display()
+        }
+        
         viewModel = ViewModel()
         sidebarManager = SidebarManager()
         let contentView = BrowserView()
@@ -87,6 +126,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(NSMenuItem(title: "New Tab", action: #selector(newTab), keyEquivalent: "t"))
         fileMenu.addItem(NSMenuItem(title: "Close Tab", action: #selector(closeTab), keyEquivalent: "w"))
 
+        // Edit Menu
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+
+        editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(NSMenuItem(title: "Find", action: #selector(ViewModel.performFindPanelAction(_:)), keyEquivalent: "f"))
+
         // View Menu
         let viewMenuItem = NSMenuItem()
         mainMenu.addItem(viewMenuItem)
@@ -108,8 +160,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if aboutWindow == nil {
             let aboutView = NSHostingView(rootView: AboutView())
             aboutWindow = NSWindow(
-                contentRect: NSRect(x: 100, y: 100, width: 300, height: 200),
-                styleMask: [.titled, .closable, .miniaturizable],
+                contentRect: NSRect(x: 100, y: 100, width: 400, height: 400),
+                styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
