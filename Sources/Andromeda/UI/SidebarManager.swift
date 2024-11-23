@@ -15,5 +15,13 @@ class SidebarManager: ObservableObject {
         isVisible.toggle()
         isPermanent = isVisible
     }
+    
+    func setTemporaryVisibility(_ visible: Bool) {
+        if !isPermanent {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isVisible = visible
+            }
+        }
+    }
 }
 

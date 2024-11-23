@@ -68,6 +68,15 @@ class CustomWindow: NSWindow {
             visualEffectView.autoresizingMask = [.width, .height]
         }
     }
+
+    override func mouseDragged(with event: NSEvent) {
+        let locationInWindow = event.locationInWindow
+        let titleBarHeight = 28.0
+        
+        if locationInWindow.y >= frame.height - titleBarHeight {
+            super.mouseDragged(with: event)
+        }
+    }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {

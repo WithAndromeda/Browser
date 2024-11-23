@@ -10,26 +10,29 @@ import SwiftUI
 struct SidebarHoverModifier: ViewModifier {
     @Binding var isVisible: Bool
     @State private var isHovering = false
-    @State private var isMenuOpen = false
     @EnvironmentObject var sidebarManager: SidebarManager
     
     func body(content: Content) -> some View {
+        let response = 0.3;
+        let damping = 1.0;
         content
             .frame(width: 250)
             .offset(x: isVisible ? 0 : -250)
             .zIndex(1)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isVisible)
+                .animation(.spring(response: response, dampingFraction: damping), value: isVisible)
             .onHover { hovering in
                 isHovering = hovering
-                if !isVisible && hovering {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isVisible = true
-                    }
-                } else if isVisible && !hovering && !sidebarManager.isPermanent {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if !isHovering {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                isVisible = false
+                if !sidebarManager.isPermanent {
+                    if hovering {
+                            withAnimation(.spring(response: response, dampingFraction: damping)) {
+                            sidebarManager.setTemporaryVisibility(true)
+                        }
+                    } else {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            if !isHovering {
+                                withAnimation(.spring(response: response, dampingFraction: damping)) {
+                                    sidebarManager.setTemporaryVisibility(false)
+                                }
                             }
                         }
                     }
