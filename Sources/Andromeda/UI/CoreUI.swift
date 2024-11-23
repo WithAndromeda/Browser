@@ -9,6 +9,19 @@ import AppKit
 import SwiftUI
 import WebKit
 
+struct HistoryItem: Codable, Identifiable {
+    let id: UUID
+    let title: String
+    let url: String
+    let date: Date
+    let faviconData: Data?
+}
+
+struct TabState: Codable {
+    let url: String
+    let title: String
+}
+
 class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var tabs: [WKWebView] = []
     @Published var selectedTabIndex: Int = 0
@@ -18,16 +31,65 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var isFindBarVisible = false
     @Published var searchText = ""
     @Published var tabFavicons: [Int: NSImage] = [:]
+    @Published var history: [HistoryItem] = []
 
     let homePage = "https://andromeda-backend-536388745693.us-central1.run.app/"
     let errorPage = "https://andromeda-backend-536388745693.us-central1.run.app/error.html"
 
+    private let tabsKey = "savedTabs"
+
     override init() {
         super.init()
-        addNewTab()
+        loadSavedTabs()
+    }
+
+    private func loadSavedTabs() {
+        if let data = UserDefaults.standard.data(forKey: tabsKey),
+           let savedTabs = try? JSONDecoder().decode([TabState].self, from: data) {
+            if !savedTabs.isEmpty {
+                tabs.removeAll()
+                for tab in savedTabs {
+                    addNewTab(withURL: tab.url, title: tab.title)
+                }
+            } else {
+                addNewTab()
+            }
+        } else {
+            addNewTab()
+        }
+        loadHistory()
+    }
+
+    private func saveTabs() {
+        let tabStates = tabs.enumerated().map { index, _ in
+            TabState(
+                url: tabURLs[index] ?? "",
+                title: tabTitles[index] ?? "New Tab"
+            )
+        }
+        if let encoded = try? JSONEncoder().encode(tabStates) {
+            UserDefaults.standard.set(encoded, forKey: tabsKey)
+        }
+    }
+
+    private func loadHistory() {
+        if let data = UserDefaults.standard.data(forKey: "browserHistory"),
+           let savedHistory = try? JSONDecoder().decode([HistoryItem].self, from: data) {
+            self.history = savedHistory
+        }
+    }
+
+    private func saveHistory() {
+        if let encoded = try? JSONEncoder().encode(history) {
+            UserDefaults.standard.set(encoded, forKey: "browserHistory")
+        }
     }
 
     func addNewTab() {
+        addNewTab(withURL: "", title: "New Tab")
+    }
+
+    func addNewTab(withURL url: String = "", title: String = "New Tab") {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = true
         webConfiguration.mediaTypesRequiringUserActionForPlayback = []
@@ -42,25 +104,53 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         tabs.append(newWebView)
         let newIndex = tabs.count - 1
         selectedTabIndex = newIndex
-        tabURLs[newIndex] = ""
-        tabTitles[newIndex] = "New Tab"
-
-        if let url = URL(string: homePage) {
+        tabTitles[newIndex] = title
+        
+        if !url.isEmpty, let url = URL(string: url) {
+            var request = URLRequest(url: url)
+            request.setValue("1", forHTTPHeaderField: "DNT")
+            newWebView.load(request)
+            tabURLs[newIndex] = url.absoluteString
+        } else if let url = URL(string: homePage) {
             var request = URLRequest(url: url)
             request.setValue("1", forHTTPHeaderField: "DNT")
             newWebView.load(request)
             tabURLs[newIndex] = ""
         }
+        saveTabs()
     }
 
     func closeTab(at index: Int) {
         guard index >= 0, index < tabs.count, tabs.count > 1 else { return }
+        
+        // Remove the tab and its associated data
         tabs[index].removeFromSuperview()
         tabs.remove(at: index)
-        tabURLs.removeValue(forKey: index)
-        tabTitles.removeValue(forKey: index)
-
+        
+        // Update all dictionaries to reflect new indices
+        let oldTabURLs = tabURLs
+        let oldTabTitles = tabTitles
+        let oldTabFavicons = tabFavicons
+        
+        tabURLs.removeAll()
+        tabTitles.removeAll()
+        tabFavicons.removeAll()
+        
+        // Rebuild dictionaries with updated indices
+        for (oldIndex, newIndex) in zip(0..., 0...) where oldIndex != index {
+            if let url = oldTabURLs[oldIndex] {
+                tabURLs[newIndex] = url
+            }
+            if let title = oldTabTitles[oldIndex] {
+                tabTitles[newIndex] = title
+            }
+            if let favicon = oldTabFavicons[oldIndex] {
+                tabFavicons[newIndex] = favicon
+            }
+        }
+        
         selectedTabIndex = min(index, tabs.count - 1)
+        saveTabs()
     }
 
     func loadHomePage(in webView: WKWebView) {
@@ -123,27 +213,42 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let index = tabs.firstIndex(of: webView) {
-            let url = webView.url?.absoluteString ?? ""
-            tabURLs[index] = url.contains("andromeda-backend-536388745693.us-central1.run.app") ? "" : url
-            tabTitles[index] = webView.title ?? "New Tab"
-            
-            // Load favicon
             webView.evaluateJavaScript("""
-                var link = document.querySelector("link[rel~='icon']");
-                link ? link.href : window.location.origin + '/favicon.ico'
-            """) { (result, error) in
-                if let faviconURLString = result as? String,
-                   let faviconURL = URL(string: faviconURLString),
-                   let faviconData = try? Data(contentsOf: faviconURL),
-                   let favicon = NSImage(data: faviconData) {
-                    DispatchQueue.main.async {
-                        self.tabFavicons[index] = favicon
+                (function() {
+                    var links = document.getElementsByTagName('link');
+                    for (var i = 0; i < links.length; i++) {
+                        if ((links[i].rel === 'icon') || 
+                            (links[i].rel === 'shortcut icon') || 
+                            (links[i].rel === 'apple-touch-icon')) {
+                            return links[i].href;
+                        }
                     }
+                    return new URL('/favicon.ico', document.baseURI).href;
+                })()
+            """) { [weak self] (result, error) in
+                if let faviconURL = result as? String,
+                   let url = URL(string: faviconURL) {
+                    URLSession.shared.dataTask(with: url) { data, response, error in
+                        if let data = data, let image = NSImage(data: data) {
+                            DispatchQueue.main.async {
+                                self?.tabFavicons[index] = image
+                            }
+                        }
+                    }.resume()
                 }
             }
             
-            if index == selectedTabIndex {
-                currentURL = tabURLs[index] ?? ""
+            // Get title and save history
+            webView.evaluateJavaScript("document.title") { [weak self] (result, error) in
+                DispatchQueue.main.async {
+                    if let title = result as? String {
+                        self?.tabTitles[index] = title
+                        if let url = webView.url?.absoluteString {
+                            self?.tabURLs[index] = url
+                            self?.saveTabs()
+                        }
+                    }
+                }
             }
         }
     }
@@ -203,6 +308,22 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
             return ""
         }
         return url
+    }
+
+    func addToHistory(title: String, url: String) {
+        let favicon = tabFavicons[selectedTabIndex]
+        let faviconData = favicon?.tiffRepresentation
+        
+        let item = HistoryItem(
+            id: UUID(),
+            title: title,
+            url: url,
+            date: Date(),
+            faviconData: faviconData
+        )
+        
+        history.append(item)
+        saveHistory()
     }
 }
 
@@ -358,6 +479,7 @@ struct BrowserView: View {
                         }
                         .padding()
                         .background(VisualEffectView())
+                        .sidebarHover(isVisible: $sidebarManager.isVisible)
 
                         Spacer()
                     }
@@ -519,4 +641,25 @@ struct TabContentView: NSViewControllerRepresentable {
     }
 
     func updateNSViewController(_ nsViewController: NSViewController, context: Context) {}
+}
+
+struct HoverEffect: ViewModifier {
+    @State private var isHovered = false
+    
+    func body(content: Content) -> some View {
+        content
+            .foregroundColor(isHovered ? .primary : .gray)
+            .opacity(isHovered ? 1 : 0.5)
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isHovered = hovering
+                }
+            }
+    }
+}
+
+extension View {
+    func hoverEffect() -> some View {
+        modifier(HoverEffect())
+    }
 }

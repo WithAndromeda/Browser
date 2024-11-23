@@ -10,6 +10,7 @@ import SwiftUI
 struct SidebarHoverModifier: ViewModifier {
     @Binding var isVisible: Bool
     @State private var isHovering = false
+    @State private var isMenuOpen = false
     @EnvironmentObject var sidebarManager: SidebarManager
     
     func body(content: Content) -> some View {
@@ -21,15 +22,11 @@ struct SidebarHoverModifier: ViewModifier {
             .onHover { hovering in
                 isHovering = hovering
                 if !isVisible && hovering {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        if isHovering {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                isVisible = true
-                            }
-                        }
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isVisible = true
                     }
                 } else if isVisible && !hovering && !sidebarManager.isPermanent {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         if !isHovering {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 isVisible = false
@@ -46,4 +43,5 @@ extension View {
         modifier(SidebarHoverModifier(isVisible: isVisible))
     }
 }
+
 
