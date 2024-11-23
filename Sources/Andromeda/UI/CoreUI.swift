@@ -123,31 +123,30 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     func closeTab(at index: Int) {
         guard index >= 0, index < tabs.count, tabs.count > 1 else { return }
         
-        // Remove the tab and its associated data
         tabs[index].removeFromSuperview()
         tabs.remove(at: index)
         
-        // Update all dictionaries to reflect new indices
-        let oldTabURLs = tabURLs
-        let oldTabTitles = tabTitles
-        let oldTabFavicons = tabFavicons
+        var newTabURLs: [Int: String] = [:]
+        var newTabTitles: [Int: String] = [:]
+        var newTabFavicons: [Int: NSImage] = [:]
         
-        tabURLs.removeAll()
-        tabTitles.removeAll()
-        tabFavicons.removeAll()
-        
-        // Rebuild dictionaries with updated indices
-        for (oldIndex, newIndex) in zip(0..., 0...) where oldIndex != index {
-            if let url = oldTabURLs[oldIndex] {
-                tabURLs[newIndex] = url
+        for i in 0..<tabs.count {
+            let oldIndex = i >= index ? i + 1 : i
+            
+            if let url = tabURLs[oldIndex] {
+                newTabURLs[i] = url
             }
-            if let title = oldTabTitles[oldIndex] {
-                tabTitles[newIndex] = title
+            if let title = tabTitles[oldIndex] {
+                newTabTitles[i] = title
             }
-            if let favicon = oldTabFavicons[oldIndex] {
-                tabFavicons[newIndex] = favicon
+            if let favicon = tabFavicons[oldIndex] {
+                newTabFavicons[i] = favicon
             }
         }
+        
+        tabURLs = newTabURLs
+        tabTitles = newTabTitles
+        tabFavicons = newTabFavicons
         
         selectedTabIndex = min(index, tabs.count - 1)
         saveTabs()
