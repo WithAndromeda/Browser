@@ -115,4 +115,4 @@ struct HistoryView: View {
             Text("Are you sure you want to clear all browsing history? This action cannot be undone.")
         }
     }
-} 
+}
