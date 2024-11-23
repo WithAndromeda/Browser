@@ -79,12 +79,37 @@ class CustomWindow: NSWindow {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: CustomWindow!
+class FloatingPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    
+    init(contentRect: NSRect) {
+        super.init(
+            contentRect: contentRect,
+            styleMask: [.hudWindow, .titled, .fullSizeContentView, .utilityWindow],
+            backing: .buffered,
+            defer: false
+        )
+        
+        self.isFloatingPanel = true
+        self.titlebarAppearsTransparent = true
+        self.titleVisibility = .hidden
+        self.standardWindowButton(.closeButton)?.isHidden = true
+        self.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        self.standardWindowButton(.zoomButton)?.isHidden = true
+        self.backgroundColor = .clear
+        self.isMovableByWindowBackground = true
+        self.level = .floating
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var viewModel: ViewModel?
+    var window: CustomWindow?
     var aboutWindow: NSWindow?
-    var sidebarManager: SidebarManager!
     var historyWindow: NSWindow?
+    var settingsWindow: NSWindow?
+    var sidebarManager = SidebarManager()
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         if let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
@@ -126,18 +151,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
 
-        window.titleVisibility = .visible
-        window.titlebarAppearsTransparent = false
-        window.standardWindowButton(.closeButton)?.isHidden = false
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = false
-        window.standardWindowButton(.zoomButton)?.isHidden = false
+        window?.titleVisibility = .visible
+        window?.titlebarAppearsTransparent = false
+        window?.standardWindowButton(.closeButton)?.isHidden = false
+        window?.standardWindowButton(.miniaturizeButton)?.isHidden = false
+        window?.standardWindowButton(.zoomButton)?.isHidden = false
 
-        window.collectionBehavior = [.fullScreenPrimary]
-        window.center()
+        window?.collectionBehavior = [.fullScreenPrimary]
+        window?.center()
 
         let hostingView = NSHostingView(rootView: contentView)
-        window.contentView = hostingView
-        window.makeKeyAndOrderFront(nil)
+        window?.contentView = hostingView
+        window?.makeKeyAndOrderFront(nil)
 
         setupMenu()
     }
@@ -218,6 +243,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         historyMenu.addItem(NSMenuItem.separator())
         historyMenu.addItem(
             NSMenuItem(title: "Show History", action: #selector(showHistory), keyEquivalent: "y"))
+
+        // Settings Menu
+        let settingsMenuItem = NSMenuItem()
+        settingsMenuItem.title = "Settings"
+        mainMenu.addItem(settingsMenuItem)
+        let settingsMenu = NSMenu(title: "Settings")
+        settingsMenuItem.submenu = settingsMenu
+
+        settingsMenu.addItem(
+            NSMenuItem(
+                title: "Preferences...",
+                action: #selector(AppDelegate.showSettings),
+                keyEquivalent: ","))
+
+        // Window Menu
+        let windowMenuItem = NSMenuItem()
+        mainMenu.addItem(windowMenuItem)
+        let windowMenu = NSMenu(title: "Window")
+        windowMenuItem.submenu = windowMenu
+
+        windowMenu.addItem(
+            NSMenuItem(title: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m"))
+        windowMenu.addItem(
+            NSMenuItem(title: "Zoom", action: #selector(NSWindow.zoom(_:)), keyEquivalent: ""))
+        windowMenu.addItem(NSMenuItem.separator())
+        windowMenu.addItem(
+            NSMenuItem(title: "Hide Andromeda", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+        windowMenu.addItem(
+            NSMenuItem(title: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+                .with({ $0.keyEquivalentModifierMask = [.command, .option] }))
+        windowMenu.addItem(
+            NSMenuItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: ""))
     }
 
     @objc func showAboutWindow() {
@@ -262,24 +319,87 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showHistory() {
         if historyWindow == nil {
-            historyWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
+            historyWindow = FloatingPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 400)
             )
-            historyWindow?.title = "Browser History"
+            historyWindow?.delegate = self
         }
         
         let historyView = NSHostingView(rootView: 
-            HistoryView()
-                .environmentObject(viewModel!)
-                .frame(maxWidth: CGFloat.infinity, maxHeight: CGFloat.infinity)
+            HistoryView(closeAction: { [weak self] in
+                self?.historyWindow?.close()
+            })
+            .environmentObject(viewModel!)
         )
         
         historyWindow?.contentView = historyView
-        historyWindow?.center()
+        
+        if let mainWindow = self.window {
+            let mainFrame = mainWindow.frame
+            let historyFrame = historyWindow?.frame ?? .zero
+            let x = mainFrame.midX - historyFrame.width/2
+            let y = mainFrame.midY - historyFrame.height/2
+            historyWindow?.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            historyWindow?.center()
+        }
+        
         historyWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func showSettings() {
+        if settingsWindow == nil {
+            settingsWindow = FloatingPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 500, height: 400)
+            )
+            settingsWindow?.delegate = self
+        }
+        
+        let settingsView = NSHostingView(rootView: 
+            SettingsView(
+                settingsManager: viewModel?.settingsManager ?? SettingsManager(),
+                closeAction: { [weak self] in
+                    self?.settingsWindow?.close()
+                }
+            )
+        )
+        settingsWindow?.contentView = settingsView
+        
+        if let mainWindow = self.window {
+            let mainFrame = mainWindow.frame
+            let settingsFrame = settingsWindow?.frame ?? .zero
+            let x = mainFrame.midX - settingsFrame.width/2
+            let y = mainFrame.midY - settingsFrame.height/2
+            settingsWindow?.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            settingsWindow?.center()
+        }
+        
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            switch window {
+            case settingsWindow:
+                settingsWindow = nil
+            case historyWindow:
+                historyWindow = nil
+            case aboutWindow:
+                aboutWindow = nil
+            case self.window:
+                NSApplication.shared.terminate(self)
+            default:
+                break
+            }
+        }
+    }
+}
+
+extension NSMenuItem {
+    func with(_ configure: (NSMenuItem) -> Void) -> NSMenuItem {
+        configure(self)
+        return self
     }
 }
 

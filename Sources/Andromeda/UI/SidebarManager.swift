@@ -8,8 +8,21 @@
 import SwiftUI
 
 class SidebarManager: ObservableObject {
-    @Published var isVisible = false
-    @Published var isPermanent = false
+    @Published var isVisible = false {
+        didSet {
+            UserDefaults.standard.set(isVisible, forKey: "sidebarVisible")
+        }
+    }
+    @Published var isPermanent = false {
+        didSet {
+            UserDefaults.standard.set(isPermanent, forKey: "sidebarPermanent")
+        }
+    }
+    
+    init() {
+        isVisible = UserDefaults.standard.bool(forKey: "sidebarVisible")
+        isPermanent = UserDefaults.standard.bool(forKey: "sidebarPermanent")
+    }
     
     func toggle() {
         isVisible.toggle()

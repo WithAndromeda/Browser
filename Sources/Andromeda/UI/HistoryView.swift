@@ -43,16 +43,28 @@ struct HistoryItemView: View {
 struct HistoryView: View {
     @EnvironmentObject private var viewModel: ViewModel
     @State private var selectedItemId: UUID?
+    @State private var searchText = ""
+    let closeAction: () -> Void
+    
+    var filteredHistory: [HistoryItem] {
+        if searchText.isEmpty {
+            return viewModel.history
+        }
+        return viewModel.history.filter { item in
+            item.title.localizedCaseInsensitiveContains(searchText) ||
+            item.url.localizedCaseInsensitiveContains(searchText)
+        }
+    }
     
     var body: some View {
-        VStack {
-            Text("Browser History")
-                .font(.title)
+        VStack(spacing: 0) {
+            TextField("Search History", text: $searchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding()
             
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(viewModel.history.enumerated().reversed()), id: \.element.id) { _, item in
+                    ForEach(Array(filteredHistory.enumerated().reversed()), id: \.element.id) { _, item in
                         HistoryItemView(
                             item: item,
                             isSelected: selectedItemId == item.id,
@@ -63,7 +75,7 @@ struct HistoryView: View {
                                 if let url = URL(string: item.url) {
                                     viewModel.currentURL = url.absoluteString
                                     viewModel.navigateToURL()
-                                    NSApplication.shared.windows.first { $0.title == "Browser History" }?.close()
+                                    closeAction()
                                 }
                             }
                         )
@@ -71,6 +83,14 @@ struct HistoryView: View {
                     }
                 }
                 .padding()
+            }
+            
+            HStack {
+                Spacer()
+                Button("Close", action: closeAction)
+                    .keyboardShortcut(.defaultAction)
+                    .padding(.trailing)
+                    .padding(.bottom)
             }
         }
         .background(Color(NSColor.windowBackgroundColor))

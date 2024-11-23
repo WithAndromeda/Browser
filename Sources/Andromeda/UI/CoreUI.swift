@@ -37,6 +37,7 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     let errorPage = "https://andromeda-backend-536388745693.us-central1.run.app/error.html"
 
     private let tabsKey = "savedTabs"
+    public let settingsManager = SettingsManager()
 
     override init() {
         super.init()
@@ -93,6 +94,13 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = true
         webConfiguration.mediaTypesRequiringUserActionForPlayback = []
+        
+        let dataStore = WKWebsiteDataStore.nonPersistent()
+        let prefs = WKWebpagePreferences()
+        prefs.allowsContentJavaScript = settingsManager.privacySettings.enableJavaScript
+        webConfiguration.defaultWebpagePreferences = prefs
+        webConfiguration.websiteDataStore = settingsManager.privacySettings.allowThirdPartyCookies ? 
+            .default() : dataStore
 
         let newWebView = WKWebView(frame: .zero, configuration: webConfiguration)
         newWebView.customUserAgent =
@@ -118,6 +126,7 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
             tabURLs[newIndex] = ""
         }
         saveTabs()
+        configureWebView(newWebView)
     }
 
     func closeTab(at index: Int) {
@@ -324,6 +333,27 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
         history.append(item)
         saveHistory()
     }
+
+    private func configureWebView(_ webView: WKWebView) {
+        let preferences = WKWebpagePreferences()
+        let urlString = webView.url?.absoluteString ?? ""
+        
+        if let matchingRule = settingsManager.privacySettings.siteRules.first(where: { $0.matches(url: urlString) }) {
+            preferences.allowsContentJavaScript = matchingRule.allowJavaScript ?? settingsManager.privacySettings.enableJavaScript
+            
+            if let allowCookies = matchingRule.allowThirdPartyCookies {
+                let dataStore = allowCookies ? WKWebsiteDataStore.default() : WKWebsiteDataStore.nonPersistent()
+                webView.configuration.websiteDataStore = dataStore
+            }
+        } else {
+            preferences.allowsContentJavaScript = settingsManager.privacySettings.enableJavaScript
+            let dataStore = settingsManager.privacySettings.allowThirdPartyCookies ? 
+                WKWebsiteDataStore.default() : WKWebsiteDataStore.nonPersistent()
+            webView.configuration.websiteDataStore = dataStore
+        }
+        
+        webView.configuration.defaultWebpagePreferences = preferences
+    }
 }
 
 struct ContentView: NSViewControllerRepresentable {
@@ -477,13 +507,13 @@ struct BrowserView: View {
                             .padding(.top)
                         }
                         .padding()
-                        .background(VisualEffectView())
+                        .background(VisualEffectView(material: .windowBackground, blendingMode: .behindWindow))
                         .sidebarHover(isVisible: $sidebarManager.isVisible)
 
                         Spacer()
                     }
                     .frame(width: 250)
-                    .background(VisualEffectView())
+                    .background(VisualEffectView(material: .windowBackground, blendingMode: .behindWindow))
                     .sidebarHover(isVisible: $sidebarManager.isVisible)
                 }
 
@@ -492,7 +522,7 @@ struct BrowserView: View {
                     if !viewModel.tabs.isEmpty {
                         ContentView(viewModel: viewModel, tabIndex: viewModel.selectedTabIndex)
                     } else {
-                        VisualEffectView()
+                        VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
@@ -558,18 +588,6 @@ struct BrowserView: View {
             }
             .position(x: 2.5, y: geometry.size.height / 2)
     }
-}
-
-struct VisualEffectView: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.material = .sidebar
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 func setupMenu() {
