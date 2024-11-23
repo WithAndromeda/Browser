@@ -5,10 +5,12 @@
 //  Created by WithAndromeda on 10/20/24.
 //
 
+import Foundation
+#if os(macOS)
 import AppKit
 import SwiftUI
 import WebKit
-import Foundation
+
 
 @_exported import class AppKit.NSImage
 
@@ -402,8 +404,10 @@ extension NSMenuItem {
         return self
     }
 }
+#endif
 
 func main() {
+    #if os(macOS)
     let app = NSApplication.shared
     let delegate = AppDelegate()
     app.delegate = delegate
@@ -411,6 +415,10 @@ func main() {
     app.setActivationPolicy(.regular)
     app.activate(ignoringOtherApps: true)
     app.run()
+    #else
+    NotImplementedException()
+    ThrowFatalException("Not implemented for this platform")
+    #endif
 }
 
 main()

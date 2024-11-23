@@ -1,3 +1,11 @@
+//
+//  Settings.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 11/23/24.
+//
+
+#if os(macOS)
 import SwiftUI
 
 struct PrivacySettings: Codable {
@@ -176,3 +184,4 @@ struct SiteRulesView: View {
         }
     }
 }
+#endif

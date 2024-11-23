@@ -5,6 +5,7 @@
 //  Created by WithAndromeda on 11/23/24.
 //
 
+#if os(macOS)
 import SwiftUI
 
 struct SidebarHoverModifier: ViewModifier {
@@ -54,5 +55,5 @@ extension View {
         modifier(SidebarHoverModifier(isVisible: isVisible))
     }
 }
-
+#endif
 

@@ -1,3 +1,11 @@
+//
+//  SiteRule.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 11/23/24.
+//
+
+#if os(macOS)
 import Foundation
 
 struct SiteRule: Codable, Identifiable {
@@ -25,3 +33,4 @@ extension SiteRule {
         return regex?.firstMatch(in: url, range: range) != nil
     }
 }
+#endif

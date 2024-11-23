@@ -5,6 +5,7 @@
 //  Created by WithAndromeda on 10/20/24.
 //
 
+#if os(macOS)
 import AppKit
 import SwiftUI
 import WebKit
@@ -33,7 +34,7 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     @Published var tabFavicons: [Int: NSImage] = [:]
     @Published var history: [HistoryItem] = []
 
-    let homePage = "https://andromeda-backend-536388745693.us-central1.run.app/"
+    let homePage = ""
     let errorPage = "https://andromeda-backend-536388745693.us-central1.run.app/error.html"
 
     private let tabsKey = "savedTabs"
@@ -541,10 +542,13 @@ struct BrowserView: View {
                 // Main browser content
                 VStack(spacing: 0) {
                     if !viewModel.tabs.isEmpty {
-                        ContentView(viewModel: viewModel, tabIndex: viewModel.selectedTabIndex)
+                        if let currentURL = viewModel.tabURLs[viewModel.selectedTabIndex], currentURL.isEmpty {
+                            HomeView()
+                        } else {
+                            ContentView(viewModel: viewModel, tabIndex: viewModel.selectedTabIndex)
+                        }
                     } else {
-                        VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        HomeView()
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -701,3 +705,4 @@ extension View {
         modifier(HoverEffect())
     }
 }
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import XCTest
 import WebKit
 @testable import Andromeda
@@ -68,3 +69,4 @@ class AndromedaTests: XCTestCase {
 extension AndromedaTests: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {}
 }
+#endif

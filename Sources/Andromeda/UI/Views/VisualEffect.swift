@@ -1,3 +1,11 @@
+//
+//  VisualEffect.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 11/23/24.
+//
+
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -18,3 +26,4 @@ struct VisualEffectView: NSViewRepresentable {
         visualEffectView.blendingMode = blendingMode
     }
 }
+#endif

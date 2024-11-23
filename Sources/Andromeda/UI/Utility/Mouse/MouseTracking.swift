@@ -5,6 +5,7 @@
 //  Created by WithAndromeda on 11/23/24.
 //
 
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -50,4 +51,4 @@ struct MouseTrackingViewRepresentable: NSViewRepresentable {
     
     func updateNSView(_ nsView: MouseTrackingView, context: Context) {}
 }
-
+#endif

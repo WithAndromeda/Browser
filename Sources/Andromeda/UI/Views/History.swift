@@ -1,3 +1,11 @@
+//
+//  History.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 10/20/24.
+//
+
+#if os(macOS)
 import SwiftUI
 import WebKit
 
@@ -116,3 +124,4 @@ struct HistoryView: View {
         }
     }
 }
+#endif
