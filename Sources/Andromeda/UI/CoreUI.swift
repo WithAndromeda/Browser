@@ -93,42 +93,43 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
     }
 
     func addNewTab(withURL url: String = "", title: String = "New Tab") {
-        let webConfiguration = WKWebViewConfiguration()
-        webConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = true
-        webConfiguration.mediaTypesRequiringUserActionForPlayback = []
-        
-        let dataStore = WKWebsiteDataStore.nonPersistent()
-        let prefs = WKWebpagePreferences()
-        prefs.allowsContentJavaScript = settingsManager.privacySettings.enableJavaScript
-        webConfiguration.defaultWebpagePreferences = prefs
-        webConfiguration.websiteDataStore = settingsManager.privacySettings.allowThirdPartyCookies ? 
-            .default() : dataStore
+        if !url.isEmpty {
+            // Only create WebView for actual URLs
+            let webConfiguration = WKWebViewConfiguration()
+            webConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = true
+            webConfiguration.mediaTypesRequiringUserActionForPlayback = []
+            
+            let dataStore = WKWebsiteDataStore.nonPersistent()
+            let prefs = WKWebpagePreferences()
+            prefs.allowsContentJavaScript = settingsManager.privacySettings.enableJavaScript
+            webConfiguration.defaultWebpagePreferences = prefs
+            webConfiguration.websiteDataStore = settingsManager.privacySettings.allowThirdPartyCookies ? 
+                .default() : dataStore
 
-        let newWebView = WKWebView(frame: .zero, configuration: webConfiguration)
-        newWebView.customUserAgent =
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+            let newWebView = WKWebView(frame: .zero, configuration: webConfiguration)
+            newWebView.customUserAgent =
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
-        newWebView.navigationDelegate = self
-        newWebView.allowsLinkPreview = true
+            newWebView.navigationDelegate = self
+            newWebView.allowsLinkPreview = true
 
-        tabs.append(newWebView)
-        let newIndex = tabs.count - 1
-        selectedTabIndex = newIndex
-        tabTitles[newIndex] = title
-        
-        if !url.isEmpty, let url = URL(string: url) {
-            var request = URLRequest(url: url)
+            tabs.append(newWebView)
+            let newIndex = tabs.count - 1
+            selectedTabIndex = newIndex
+            tabTitles[newIndex] = title
+            
+            var request = URLRequest(url: URL(string: url)!)
             request.setValue("1", forHTTPHeaderField: "DNT")
             newWebView.load(request)
-            tabURLs[newIndex] = url.absoluteString
-        } else if let url = URL(string: homePage) {
-            var request = URLRequest(url: url)
-            request.setValue("1", forHTTPHeaderField: "DNT")
-            newWebView.load(request)
+            tabURLs[newIndex] = url
+        } else {
+            tabs.append(WKWebView())
+            let newIndex = tabs.count - 1
+            selectedTabIndex = newIndex
+            tabTitles[newIndex] = "Home"
             tabURLs[newIndex] = ""
         }
         saveTabs()
-        configureWebView(newWebView)
     }
 
     func closeTab(at index: Int) {
@@ -218,11 +219,64 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
             let currentWebView = tabs[selectedTabIndex]
             currentWebView.load(request)
             tabURLs[selectedTabIndex] = urlString
+            
+            // Update title and favicon
+            currentWebView.evaluateJavaScript("document.title") { [weak self] (result, error) in
+                if let title = result as? String {
+                    DispatchQueue.main.async {
+                        self?.tabTitles[self?.selectedTabIndex ?? 0] = title
+                    }
+                }
+            }
+            
+            // Fetch favicon
+            currentWebView.evaluateJavaScript("""
+                (function() {
+                    var links = document.getElementsByTagName('link');
+                    for (var i = 0; i < links.length; i++) {
+                        if ((links[i].rel === 'icon') || 
+                            (links[i].rel === 'shortcut icon') || 
+                            (links[i].rel === 'apple-touch-icon')) {
+                            return links[i].href;
+                        }
+                    }
+                    return new URL('/favicon.ico', document.baseURI).href;
+                })()
+            """) { [weak self] (result, error) in
+                if let faviconURL = result as? String,
+                   let url = URL(string: faviconURL) {
+                    URLSession.shared.dataTask(with: url) { data, response, error in
+                        if let data = data, let image = NSImage(data: data) {
+                            DispatchQueue.main.async {
+                                self?.tabFavicons[self?.selectedTabIndex ?? 0] = image
+                            }
+                        }
+                    }.resume()
+                }
+            }
         }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let index = tabs.firstIndex(of: webView) {
+            // Update URL
+            if let url = webView.url?.absoluteString {
+                tabURLs[index] = url
+                if index == selectedTabIndex {
+                    currentURL = url
+                }
+            }
+            
+            // Update title
+            webView.evaluateJavaScript("document.title") { [weak self] (result, error) in
+                if let title = result as? String {
+                    DispatchQueue.main.async {
+                        self?.tabTitles[index] = title
+                    }
+                }
+            }
+            
+            // Update favicon
             webView.evaluateJavaScript("""
                 (function() {
                     var links = document.getElementsByTagName('link');
@@ -242,37 +296,9 @@ class ViewModel: NSObject, ObservableObject, WKNavigationDelegate {
                         if let data = data, let image = NSImage(data: data) {
                             DispatchQueue.main.async {
                                 self?.tabFavicons[index] = image
-                                self?.faviconData = data
                             }
                         }
                     }.resume()
-                }
-            }
-            
-            // Get title and save history
-            webView.evaluateJavaScript("document.title") { [weak self] (result, error) in
-                DispatchQueue.main.async {
-                    if let title = result as? String,
-                       let url = webView.url?.absoluteString,
-                       !url.hasPrefix(self?.homePage ?? ""),  // Don't save internal pages
-                       !url.hasPrefix(self?.errorPage ?? "") {
-                        
-                        self?.tabTitles[index] = title
-                        self?.tabURLs[index] = url
-                        
-                        // Create and save history item
-                        let historyItem = HistoryItem(
-                            id: UUID(),
-                            title: title,
-                            url: url,
-                            date: Date(),
-                            faviconData: self?.faviconData
-                        )
-                        
-                        self?.history.append(historyItem)
-                        self?.saveHistory()
-                        self?.saveTabs()
-                    }
                 }
             }
         }
@@ -529,13 +555,24 @@ struct BrowserView: View {
                             .padding(.top)
                         }
                         .padding()
-                        .background(VisualEffectView(material: .windowBackground, blendingMode: .behindWindow))
+                        .background(
+                            VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
+                                .opacity(1)
+                        )
+                        .frame(width: 250)
+                        .background(
+                            VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
+                                .opacity(1)
+                        )
                         .sidebarHover(isVisible: $sidebarManager.isVisible)
 
                         Spacer()
                     }
                     .frame(width: 250)
-                    .background(VisualEffectView(material: .windowBackground, blendingMode: .behindWindow))
+                    .background(
+                        VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
+                            .opacity(1)
+                    )
                     .sidebarHover(isVisible: $sidebarManager.isVisible)
                 }
 
@@ -544,11 +581,13 @@ struct BrowserView: View {
                     if !viewModel.tabs.isEmpty {
                         if let currentURL = viewModel.tabURLs[viewModel.selectedTabIndex], currentURL.isEmpty {
                             HomeView()
+                                .edgesIgnoringSafeArea(.all)
                         } else {
                             ContentView(viewModel: viewModel, tabIndex: viewModel.selectedTabIndex)
                         }
                     } else {
                         HomeView()
+                            .edgesIgnoringSafeArea(.all)
                     }
                 }
                 .frame(maxWidth: .infinity)

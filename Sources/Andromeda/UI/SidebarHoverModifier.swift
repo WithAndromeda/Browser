@@ -14,11 +14,12 @@ struct SidebarHoverModifier: ViewModifier {
     @EnvironmentObject var sidebarManager: SidebarManager
     
     func body(content: Content) -> some View {
-        let response = 0.3
-        let damping = 1.0
+        let response = 0.2
+        let damping = 0.8
         
         ZStack {
-            VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
+            VisualEffectView(material: .hudWindow, blendingMode: .withinWindow)
+                .opacity(1)
                 .frame(width: 250)
                 .offset(x: isVisible ? 0 : -250)
                 .animation(.spring(response: response, dampingFraction: damping), value: isVisible)
