@@ -1,3 +1,10 @@
+//
+//  SidebarManager.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 11/23/24.
+//
+
 import SwiftUI
 
 class SidebarManager: ObservableObject {

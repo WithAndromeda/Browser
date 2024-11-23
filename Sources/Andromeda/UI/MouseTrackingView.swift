@@ -1,3 +1,10 @@
+//
+//  MouseTrackingView.swift
+//  Andromeda
+//
+//  Created by WithAndromeda on 11/23/24.
+//
+
 import SwiftUI
 import AppKit
 

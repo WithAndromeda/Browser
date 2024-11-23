@@ -2,7 +2,7 @@
 //  Exception.swift
 //  Andromeda
 //
-//  Created by Tristan Shaw on 10/20/24.
+//  Created by WithAndromeda on 10/20/24.
 //
 
 func NotImplementedException() {
